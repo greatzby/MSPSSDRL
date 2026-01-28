@@ -1,0 +1,16 @@
+# --- HuggingFace/Qwen runtime ---
+transformers>=4.40,<5
+huggingface_hub>=0.20,<1
+tokenizers>=0.15,<0.21
+safetensors>=0.4,<1
+
+# --- Training utils ---
+accelerate>=0.27,<1
+peft>=0.10,<1
+einops>=0.7
+
+# --- Optional: only needed if you run with --load_in_4bit ---
+bitsandbytes>=0.43; platform_system=="Linux"
+
+# --- Often avoids tokenizer/model config edge-cases in HF ---
+protobuf>=4.21,<5
