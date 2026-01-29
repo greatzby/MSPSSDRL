@@ -1,19 +1,42 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
 """
 GRPO/PPO-style fine-tuning for GraphA K-stage composition datasets (HF/Qwen tokenizer).
 
-v2_fix (on-policy correctness & stability):
-1) Disable dropout for PPO logprob recomputation (use model.eval() during teacher-forcing forward).
-2) Sample prompts WITHOUT replacement by default to keep group sizes consistent.
-3) When forcing EOS at the end of rollout, compute EOS old_logprob properly.
+This script performs group-based on-policy RL updates using a PPO-style clipped objective.
+For each sampled prompt (src,tgt), it draws `group_size` rollouts, computes advantages within the group,
+and updates the policy using the ratio between new and old action log-probabilities.
 
-Important policy:
-- This script DOES NOT output any "applied accuracy" metrics. All such fields are removed.
+Tokenization & rollout semantics:
+  - STRICT action space: tokens must decode to ASCII digits, a single space, or EOS
+  - a streaming parser converts the token stream into node ids; node transitions are committed on SPACE/EOS
+  - prompt text: "src tgt src " (space-terminated)
+  - success is computed by validating the predicted node path on the directed graph plus intermediate-stage
+    coverage constraints for multi-stage pairs.
+
+Important implementation detail:
+  - The policy is kept in `eval()` mode during rollouts and log-prob recomputation to disable dropout so that
+    old/new log-probabilities are comparable; parameters remain trainable (gradients still flow).
+
+Inputs:
+  - --data_dir: train_{K}.txt, test.txt, meta.pkl (block_size), stage_info.pkl, composition_graph.graphml
+  - --sft_dir: HF model directory (or LoRA adapter directory) used to initialize the policy (and KL reference if enabled)
+
+Outputs (written to --log_dir/grpo_{timestamp}/):
+  - metrics_grpo.jsonl
+  - periodic HF checkpoints (policy_model + tokenizer), plus copied data meta
 
 Notes:
-- Default --max_iters is set to 1000 to avoid excessive GPU usage by default.
+  - `--epsilon_*` options exist but epsilon-greedy breaks strict on-policy PPO assumptions; recommended eps=0.
+  - Evaluation reports both `accuracy` and `accuracy_raw` depending on the selected success path mode.
+
+Example:
+python Qwen2.5-3b/qwen_GRPO.py \
+  --data_dir data/datasets/graphA_train_maxjump1 \
+  --train_paths_per_pair 20 \
+  --sft_dir out/<your_qwen_sft_run_dir>/ckpt_<iter> \
+  --base_model Qwen/Qwen2.5-3B \
+  --device cuda:0
 """
 
 from __future__ import annotations

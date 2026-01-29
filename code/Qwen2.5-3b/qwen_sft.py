@@ -1,25 +1,53 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Qwen (HF) training script for GraphA K-stage datasets.
+Supervised training of a HuggingFace causal LM (e.g., Qwen) on GraphA K-stage composition datasets.
 
-Expects (in --data_dir):
+This script trains with next-token prediction on HF-tokenized `.bin` files produced by `prepare_qwen.py`.
+Each stored sequence has length `seq_len = block_size + 1` and is padded with `pad_token_id`
+(loss uses `ignore_index=pad_token_id`).
+
+Required inputs (in --data_dir):
   - train_{K}.bin (uint32) and val.bin (uint32) from prepare_qwen.py
-  - meta.pkl with hf_model, pad/eos ids, seq_len, block_size, format=hf_tokenized
-  - tokenizer/ directory saved by prepare_qwen.py
+  - meta.pkl with:
+      * format="hf_tokenized"
+      * hf_model, block_size, seq_len, pad_token_id, (optional) eos_token_id
+      * (optional) trust_remote_code
+  - tokenizer/ directory saved by prepare_qwen.py (used to ensure PAD/EOS consistency)
   - composition_graph.graphml
   - stage_info.pkl
-  - test.txt
+  - test.txt (each line: "src tgt ..."; only the first two integers are used for evaluation buckets)
 
-Evaluation:
-  - Buckets are auto-built for all Si->Sj (i<j).
-  - Validity checks:
-      * generated path starts with source and ends with target
-      * every consecutive edge exists in the graph
-      * if stage(source)=i and stage(target)=j and j>i+1:
-          path must include at least one node from every intermediate stage i+1..j-1
+Generation-based evaluation (paper protocol):
+  - prompt text: "src tgt src " (space-terminated)
+  - generate continuation; parse ONLY the newly generated tokens (gen[:, prompt_len:])
+  - truncate at EOS if present; decode; keep only the first line
+  - extract space-separated digit tokens as node ids
+  - predicted path = [src] + generated_nodes
+  - valid iff:
+      * path starts at src and ends at tgt
+      * every consecutive directed edge exists in composition_graph
+      * if stage(src)=i and stage(tgt)=j with j > i+1, the path visits at least one node
+        from every intermediate stage i+1..j-1
+
+Outputs (written to out/qwen_composition_{timestamp}/):
+  - train.log
+  - metrics_history.jsonl (train/val loss + bucketed generation accuracy)
+  - checkpoints saved as HF directories (model + tokenizer)
+
+Tip: for deterministic eval, keep `--no-eval_do_sample` (greedy decoding).
+
+Example:
+python Qwen2.5-3b/qwen_sft.py \
+  --data_dir data/datasets/graphA_train_maxjump1 \
+  --train_paths_per_pair 20 \
+  --device cuda:0 \
+  --dtype bf16 \
+  --max_iters 2000 \
+  --test_interval 100 \
+  --checkpoint_interval 500
+
 """
-
 from __future__ import annotations
 
 import argparse

@@ -1,15 +1,47 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Q-Learning fine-tuning script for GraphA Tier-3 datasets.
+Q-learning fine-tuning for GraphA (token-level RL on graph path generation).
 
-Notes (high-level):
-  1) Supports scheduled rollout temperature and epsilon-greedy exploration.
-  2) Uses process-level shaping rewards (valid edge reward, stage-2 bridge reward, etc.).
-  3) Optionally allows continuing after a small number of invalid transitions.
-  4) Optional KL regularization to stay close to the SFT reference model.
-  5) Avoids block_size expansion when overriding from CLI.
-  6) Success evaluation prepends `source` to the generated node sequence (aligned with evaluation).
+This script initializes a GPT policy from an SFT checkpoint and optimizes a
+Q-learning objective over next-token actions. It supports:
+  - rollout temperature scheduling and epsilon-greedy exploration
+  - process-shaped rewards (valid-edge reward, stage-2 bridge reward, penalties, etc.)
+  - optional target network (EMA or periodic hard sync)
+  - optional KL regularization to stay close to the SFT reference policy
+
+Prompts and path interpretation (aligned with evaluation):
+  - prompt tokens: [src, tgt, src]
+  - stop token id: meta["stoi"]["\\n"]
+  - the generated continuation is parsed as node ids; the full path is:
+      [src] + generated_nodes
+  - for S1->S3 pairs, validity additionally requires visiting at least one Stage-2 node
+
+Required inputs:
+  - --data_dir must contain: train_{K}.txt, test.txt, meta.pkl, stage_info.pkl,
+    composition_graph.graphml
+  - --sft_checkpoint is a `.pt` checkpoint used for initialization (and KL reference)
+
+Outputs (written to --log_dir/ql_{timestamp}/):
+  - train_qlearning.log
+  - metrics_ql.jsonl
+  - ckpt_ql_{iter}.pt
+
+Example:
+python nanoGPT/nanoGPT_Qlearning.py \
+    --data_dir data/datasets/graphA_full_P13_0 \
+    --sft_checkpoint out/<your_sft_run_dir>/ckpt_5000.pt \
+    --train_paths_per_pair 20 \
+    --device cuda:0 \
+    --max_iters 20000 \
+    --batch_size 32 \
+    --max_rollout_steps 32 \
+    --reward_type process \
+    --reward_valid_transition 0.10 \
+    --reward_invalid_transition 0.25 \
+    --reward_invalid_token 1.0 \
+    --reward_hit_target 1.5
+    --kl_coef 0.05
 """
 
 from __future__ import annotations
@@ -114,7 +146,7 @@ def parse_args() -> argparse.Namespace:
                         help="Constant per-step penalty (encourages shorter paths).")
 
     # Target network
-    parser.add_argument("--target_ema", type=float, default=0.995,
+    parser.add_argument("--target_ema", type=float, default=0,
                         help="EMA coefficient for target network (0 disables EMA).")
     parser.add_argument("--target_sync_interval", type=int, default=0,
                         help="If EMA=0, hard-sync target network every N iters (0 disables).")

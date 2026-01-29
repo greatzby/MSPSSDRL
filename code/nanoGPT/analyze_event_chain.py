@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Multi-task staged event-chain analysis script (S1→S3 / S1→S2 / S2→S3, v5)
+Multi-task staged event-chain analysis script (S1→S3 / S1→S2 / S2→S3)
 
 What this script does
 - Iterates over checkpoints and runs autoregressive decoding for each (source, target) pair.
@@ -10,11 +10,11 @@ What this script does
 - Extracts task-specific phase/event-chain indicators and aggregates summary metrics.
 - Supports running multiple task types in a single execution.
 
-Key features (v5 over v4)
+Key features
 1) --task-types supports comma-separated values or 'all'; keeps --task-type for backward compatibility.
 2) One run analyzes multiple tasks; each task has its own per-checkpoint aggregation.
 3) Output CSV rows include task_type; optional per-pair CSV per (checkpoint, task).
-4) Event-chain definitions and aggregation logic are preserved from v4.
+4) Event-chain definitions and aggregation logic are preserved from.
 
 Important note (by design)
 - The script treats the stop token as the vocab entry for '\\n' (meta["stoi"]["\\n"]).
@@ -157,7 +157,7 @@ def parse_args() -> argparse.Namespace:
     sampling.add_argument("--sample-seed", type=int, default=2025)
     sampling.add_argument("--max-new-tokens", type=int, default=32)
     sampling.add_argument("--temperature", type=float, default=0.00001)
-    sampling.add_argument("--top-k", type=int, default=0)
+    sampling.add_argument("--top-k", type=int, default=1)
 
     runtime = parser.add_argument_group("Runtime")
     runtime.add_argument("--device", type=str, default="cuda:0")

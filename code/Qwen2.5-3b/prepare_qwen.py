@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Prepare GraphA Tier-3 dataset for Qwen (HF) training.
+Prepare GraphA dataset for Qwen (HF) training.
 
 Outputs (written into --data_dir):
   - train_{K}.bin (uint32)

@@ -1,21 +1,42 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Policy Gradient (PG) fine-tuning script for GraphA Tier-3 datasets.
 
-Usage example:
-    python train_pg.py \
-        --data_dir data/datasets/graphA_pg020_tier3 \
-        --sft_checkpoint out/sft_run/ckpt_50000.pt \
-        --train_paths_per_pair 20 \
-        --device cuda:0 \
-        --max_iters 20000 \
-        --eval_interval 1000 \
-        --save_interval 2000 \
-        --batch_size 32 \
-        --max_rollout_steps 32 \
-        --rollout_temperature 1.2 \
-        --kl_coef 3e-4
+"""
+Policy Gradient (REINFORCE) fine-tuning for GraphA.
+
+This script initializes from an SFT checkpoint and performs REINFORCE updates using
+a scalar success reward:
+  reward = 1 if the decoded path is valid (under graph + stage constraints), else 0
+It uses an EMA reward baseline to reduce variance and optional KL regularization to
+penalize deviation from the SFT policy.
+
+Prompts and stopping (aligned with evaluation):
+  - prompt tokens: [src, tgt, src]
+  - stop token id: meta["stoi"]["\\n"]
+  - full path for validity checking: [src] + generated_nodes
+  - for S1->S3 pairs, validity requires visiting at least one Stage-2 node
+
+Required inputs (under --data_dir):
+  - train_{K}.txt, test.txt
+  - meta.pkl, stage_info.pkl
+  - composition_graph.graphml
+Also requires:
+  - --sft_checkpoint (.pt) to initialize the policy (and KL reference if enabled)
+
+Outputs (written to --log_dir/pg_{timestamp}/):
+  - train_pg.log
+  - metrics_pg.jsonl
+  - ckpt_pg_{iter}.pt
+
+Example:
+  python nanoGPT/nanoGPT_pg.py \
+    --data_dir data/datasets/graphA_full_P13_0 \
+    --sft_checkpoint out/<your_sft_run_dir>/ckpt_5000.pt \
+    --train_paths_per_pair 20 \
+    --device cuda:0 \
+    --max_iters 20000 \
+    --eval_interval 1000 \
+    --save_interval 2000
 """
 
 from __future__ import annotations

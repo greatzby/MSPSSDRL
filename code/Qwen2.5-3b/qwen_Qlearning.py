@@ -1,30 +1,51 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
 """
-Q-learning fine-tuning for GraphA K-stage composition datasets (HF/Qwen tokenizer).
+Token-level Q-learning fine-tuning for GraphA K-stage composition datasets (HF/Qwen tokenizer).
 
-v6 (NO-GUARD + node reward credit assignment + tiny format mask)
+The policy is a HuggingFace causal LM initialized from an SFT model directory (`--sft_dir`), optionally with
+LoRA adapters (PEFT). Rollouts are decoded with a STRICT, parser-friendly action space: actions must decode to
+ASCII digits ('0'..'9'), a single space (' '), or EOS. A streaming parser converts the token stream into node ids;
+node transitions are *committed* when a delimiter (SPACE/EOS) is produced.
 
-Important policy:
-- This script DOES NOT output any "applied accuracy" metrics. All such fields are removed.
+Prompt & success checking (aligned with evaluation):
+  - prompt text: "src tgt src " (space-terminated)
+  - raw predicted node path: [src] + generated_nodes
+  - applied path: environment transitions after validating edges (may differ if invalid edges are allowed to continue)
+  - validity requires:
+      * directed edge correctness
+      * intermediate-stage coverage for multi-stage pairs (Si->Sj with j>i+1 must visit stages i+1..j-1)
+  - `--success_path_mode {applied,raw}` selects which path is used for the success signal.
 
-Key features:
-1) Node-level reward credit assignment (A route, no tokenizer change):
-   - --node_reward_credit uniform_digits
-   - When a node transition reward is produced upon committing a node (SPACE/EOS),
-     redistribute that reward uniformly across the digit tokens that formed that node.
+Learning objective (high level):
+  - TD loss on selected action logits (interpreted as Q-values), with configurable backup (max/logsumexp)
+  - optional reference baseline (`--q_baseline ref`) subtracting reference logits from policy logits
+  - optional KL regularization to an SFT reference model (masked to the same candidate action set)
+  - supports process-shaped rewards, distance-to-target shaping, and optional reward credit assignment from
+    node-commit events back to digit-token steps (`--node_reward_credit`).
 
-2) Tiny format-only mask (still NO-GUARD):
-   - --mask_space_when_pending_empty (default True)
-   - Disallow SPACE when the parser has no pending digits. This only removes redundant
-     "double spaces" and does not use graph adjacency.
+Guards / constraints:
+  - The default configuration uses ONLY the strict format mask (digits/space/EOS).
+  - Dynamic guards (digit-range guard / successor-prefix guard) are intentionally disabled by default and can be
+    forbidden via `--forbid_any_guard` for reproducibility/fair comparison across methods.
 
-3) Utility:
-   - --eval_only to run bucketed evaluation on test.txt without training.
+Required inputs:
+  - --data_dir: train_{K}.txt, test.txt, meta.pkl (block_size), stage_info.pkl, composition_graph.graphml
+  - --sft_dir: HF model directory (or LoRA adapter directory) including a tokenizer with distinct PAD/EOS ids.
 
-Notes:
-- Default --max_iters is set to 1000 to avoid excessive GPU usage by default.
+Outputs (written to --log_dir/ql_{timestamp}/):
+  - metrics_ql.jsonl
+  - periodic HF checkpoints (policy_model + tokenizer), plus copied data meta for convenience
+
+This script also supports `--eval_only` to run evaluation on test pairs and exit.
+
+Example:
+python Qwen2.5-3b/qwen_Qlearning.py \
+  --data_dir data/datasets/graphA_train_maxjump1 \
+  --train_paths_per_pair 20 \
+  --sft_dir out/<your_qwen_sft_run_dir>/ckpt_<iter> \
+  --base_model Qwen/Qwen2.5-3B \
+  --device cuda:0
 """
 
 from __future__ import annotations

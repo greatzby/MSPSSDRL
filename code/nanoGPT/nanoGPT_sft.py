@@ -1,21 +1,38 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+
 """
-GPT training script for GraphA Tier-3 datasets.
+Supervised (SFT) training and evaluation for GraphA (nanoGPT-style GPT).
 
-Key features:
-  * --train_paths_per_pair argument to load matching train_XX.bin.
-  * Metrics logging to JSONL for easy plotting.
-  * Stratified accuracy reporting (S1->S2 / S2->S3 / S1->S3) plus overall.
+The model is trained autoregressively to generate graph paths from the prompt:
+  [src, tgt, src]
+Decoding is terminated by the newline token `meta["stoi"]["\\n"]` (stop token).
 
-Usage example:
-    python train_composition_fixed_final.py \
-        --data_dir data/datasets/graphA_pg020_tier3 \
-        --device cuda:0 \
-        --train_paths_per_pair 20 \
-        --max_iters 50000 \
-        --test_interval 1000 \
-        --checkpoint_interval 5000
+Evaluation protocol (aligned with the paper):
+  - A prediction is correct iff the decoded node sequence forms a valid directed
+    path from src to tgt under `composition_graph.graphml`.
+  - For S1->S3 pairs, the path must visit at least one Stage-2 node (bridge constraint).
+  - Accuracies are reported separately for S1->S2, S2->S3, S1->S3, plus overall.
+
+Required files in --data_dir:
+  - train_{K}.bin, val.bin, meta.pkl        (from prepare_composition.py)
+  - stage_info.pkl                          (defines stages S1/S2/S3)
+  - composition_graph.graphml               (directed graph; nodes are strings in GraphML)
+  - test.txt                                (evaluation pairs)
+
+Outputs (written to out/composition_{timestamp}/):
+  - train.log
+  - metrics_history.jsonl
+  - ckpt_{iter}.pt checkpoints
+
+Example:
+python nanoGPT/nanoGPT_sft.py \
+    --data_dir data/datasets/graphA_full_P13_0 \
+    --train_paths_per_pair 20 \
+    --device cuda:0 \
+    --max_iters 50000 \
+    --test_interval 1000 \
+    --checkpoint_interval 5000
 """
 
 from __future__ import annotations

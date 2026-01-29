@@ -1,7 +1,28 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+
 """
-Prepare GraphA Tier-3 dataset for GPT training.
+GraphA dataset preprocessing (nanoGPT-compatible).
+
+This script converts GraphA text files into fixed-length, line-aligned token blocks
+saved as uint16 `.bin` files, and writes `meta.pkl` (stoi/itos, vocab_size, block_size)
+used by training and evaluation scripts.
+
+Expected inputs (under --data_dir):
+  - train_{K}.txt   (K is --train_paths_per_pair)
+  - test.txt
+Each line is a whitespace-separated sequence of integer node ids:
+  src  tgt  node_1  node_2  ...
+
+Tokenization (fixed by design for reproducibility):
+  - "[PAD]" -> 0
+  - "\\n"   -> 1   (used as the stop token during decoding)
+  - node i  -> i + 2, for i in [0, total_nodes)
+
+Outputs (written to --data_dir):
+  - train_{K}.bin   (from train_{K}.txt)
+  - val.bin         (from test.txt)
+  - meta.pkl
 
 Usage example:
     python data/simple_graph/prepare_composition.py \

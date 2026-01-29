@@ -3,13 +3,7 @@
 """
 Create control splits with specific P13 ratio from GraphA tier-3 dataset.
 
-新增改动：
-  * 统计原始/采样后在「pair 数量」和「路径条数」两个层面的占比。
-  * 在终端打印更详细的统计摘要，同时写入 JSON（含原始/采样数据的详细计数与占比）。
-  * 可选 --pair-report 输出每个 (src, tgt) pair 的路径数量、类别、是否保留等信息的 CSV。
-  * JSON 摘要中记录更多元数据（随机种子、索引列等，方便复现实验）。
 
-使用示例：
 
   python make_p13_variant.py \
       --src-dir data/datasets/graphA_pg030_tier3 \

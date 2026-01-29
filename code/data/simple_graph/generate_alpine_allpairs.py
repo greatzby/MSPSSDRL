@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Generate an ALPINE-style Tier-3 dataset from a DAG composition graph with K stages.
+Generate an ALPINE-style dataset from a DAG composition graph with K stages.
 
 Key behavior (ALPINE rule implemented here):
   - Consider all reachable (src, tgt) pairs where stage(src) < stage(tgt) by default.
