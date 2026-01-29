@@ -1,40 +1,5 @@
 
-# MSPSSDRLMulti-Stage Planning from Single-Stage Data
-
-
----
-
-## 0. Directory layout
-
-Expected top-level structure:
-
-```text
-data/
-  simple_graph/
-    create_graph.py
-    generate_alpine_allpairs.py
-
-nanoGPT/
-  make_p13_variant.py
-  prepare_compositionnew.py
-  nanoGPT_sft.py
-  nanoGPT_pg.py
-  nanoGPT_Qlearning.py
-  analyze_event_chain.py
-  model.py
-  logger.py
-
-Qwen2.5-3b/
-  make_no_stage_skip_train.py
-  prepare_qwen.py
-  qwen_sft.py
-  qwen_Qlearning.py
-  qwen_GRPO.py
-  logger.py
-
-spec-file.txt
-requirements-extra.txt.txt
-```
+# Multi-Stage Planning from Single-Stage Data
 
 ---
 
@@ -51,7 +16,7 @@ conda activate MSPSSDRL
 
 # 3) Install/upgrade extra pip dependencies
 python -m pip install -U pip
-python -m pip install -r requirements-extra.txt.txt
+python -m pip install -r requirements-extra.txt
 ```
 
 ---
@@ -232,13 +197,13 @@ python Qwen2.5-3b/make_no_stage_skip_train.py \
 
 ## 6. nanoGPT pipeline (commonly K=3)
 
-Below uses `data/datasets/graphA_full_P13_20` as an example dataset directory.  
+Below uses `data/datasets/graphA_full_P13_0` as an example dataset directory.  
 You can replace it with any dataset folder you generated.
 
 ### 6.1 Preprocess to `.bin` + `meta.pkl`
 ```bash
-python nanoGPT/prepare_compositionnew.py \
-  --data_dir data/datasets/graphA_full_P13_20 \
+python nanoGPT/prepare_composition.py \
+  --data_dir data/datasets/graphA_full_P13_0 \
   --train_paths_per_pair 20 \
   --total_nodes 90 \
   --block_multiple 32
@@ -250,7 +215,7 @@ Notes:
 ### 6.2 SFT training
 ```bash
 python nanoGPT/nanoGPT_sft.py \
-  --data_dir data/datasets/graphA_full_P13_20 \
+  --data_dir data/datasets/graphA_full_P13_0 \
   --train_paths_per_pair 20 \
   --device cuda:0 \
   --max_iters 50000 \
@@ -261,8 +226,8 @@ python nanoGPT/nanoGPT_sft.py \
 ### 6.3 Policy Gradient (PG)
 ```bash
 python nanoGPT/nanoGPT_pg.py \
-  --data_dir data/datasets/graphA_full_P13_20 \
-  --sft_checkpoint out/<your_sft_run_dir>/ckpt_50000.pt \
+  --data_dir data/datasets/graphA_full_P13_0 \
+  --sft_checkpoint out/<your_sft_run_dir>/ckpt_5000.pt \
   --train_paths_per_pair 20 \
   --device cuda:0 \
   --max_iters 20000 \
@@ -272,17 +237,18 @@ python nanoGPT/nanoGPT_pg.py \
 
 ### 6.4 Q-learning (example with process-shaping rewards)
 
-The intended point here is to use **process shaping** (dense intermediate feedback), e.g.:
+The intended point here is to use **process shaping + KL regularization** (dense intermediate feedback), e.g.:
 - small reward for a valid edge transition
 - penalty for invalid transitions/tokens
 - terminal reward for reaching the target
+- KL regularization anchors the policy to the SFT reference and helps prevent goal-agnostic drift.
 
 If your script exposes explicit shaping flags, an example invocation looks like:
 
 ```bash
 python nanoGPT/nanoGPT_Qlearning.py \
-  --data_dir data/datasets/graphA_full_P13_20 \
-  --sft_checkpoint out/<your_sft_run_dir>/ckpt_50000.pt \
+  --data_dir data/datasets/graphA_full_P13_0 \
+  --sft_checkpoint out/<your_sft_run_dir>/ckpt_5000.pt \
   --train_paths_per_pair 20 \
   --device cuda:0 \
   --max_iters 20000 \
@@ -293,6 +259,7 @@ python nanoGPT/nanoGPT_Qlearning.py \
   --reward_invalid_transition 0.25 \
   --reward_invalid_token 1.0 \
   --reward_hit_target 1.5
+  --kl_coef 0.05
 ```
 
 If your local copy uses different argument names, check the supported options via:
@@ -361,7 +328,7 @@ The analyzer expects `--data-dir` to contain the following files:
    **Important assumption:** the script treats the **stop token** as the newline token:
    - stop token id = `meta["stoi"]["\n"]`
 
-2. **`stage_info.pkl`** *(or `stage_info.pt`, depending on repo version)*  
+2. **`stage_info.pkl`**  
    Must contain a structure like:
    ```python
    {"stages": [S1, S2, S3, ...]}
@@ -429,14 +396,14 @@ Exact event definitions and behavior labels are implemented in the analyzer scri
 Depending on your repo, the script may be named differently. To make commands copy-paste friendly, set:
 
 ```bash
-ANALYZER="nanoGPT/analyze_event_chain.py"   # or: analyze_event_chain_v5.py
+ANALYZER="nanoGPT/analyze_event_chain.py"  
 ```
 
 #### (1) Single task (default is often `s1s3`)
 
 ```bash
 python "${ANALYZER}" \
-  --data-dir data/datasets/graphA_pg020_tier3 \
+  --data-dir data/datasets/graphA_full_P13_0 \
   --checkpoints-dir out/sft_run \
   --run-type sft \
   --step-start 10000 --step-end 50000 --step-interval 10000 \
@@ -445,14 +412,13 @@ python "${ANALYZER}" \
   --temperature 0.0 \
   --top-k 0 \
   --device cuda:0 \
-  --progress
 ```
 
 #### (2) Run all task types in one pass (**recommended**)
 
 ```bash
 python "${ANALYZER}" \
-  --data-dir data/datasets/graphA_pg020_tier3 \
+  --data-dir data/datasets/graphA_full_P13_0 \
   --checkpoints-dir out/qlearning_run \
   --run-type ql \
   --task-types all \
@@ -469,7 +435,7 @@ python "${ANALYZER}" \
 
 ```bash
 python "${ANALYZER}" \
-  --data-dir data/datasets/graphA_pg020_tier3 \
+  --data-dir data/datasets/graphA_full_P13_0 \
   --checkpoints-dir out/pg_run \
   --run-type pg \
   --task-types s1s3,s2s3 \
@@ -574,7 +540,6 @@ python Qwen2.5-3b/prepare_qwen.py \
   --hf_model Qwen/Qwen2.5-3B \
   --block_multiple 32 \
   --append_eos \
-  --trust_remote_code
 ```
 
 ### 7.2 SFT
@@ -584,9 +549,9 @@ python Qwen2.5-3b/qwen_sft.py \
   --train_paths_per_pair 20 \
   --device cuda:0 \
   --dtype bf16 \
-  --max_iters 20000 \
-  --test_interval 1000 \
-  --checkpoint_interval 5000
+  --max_iters 2000 \
+  --test_interval 100 \
+  --checkpoint_interval 500
 ```
 
 ### 7.3 Q-learning
@@ -616,6 +581,7 @@ python Qwen2.5-3b/qwen_Qlearning.py -h
 python Qwen2.5-3b/qwen_GRPO.py -h
 ```
 This will print the full list of available CLI options and their descriptions.
+
 ---
 
 ## 8. Suggested run order (quick checklist)
@@ -624,7 +590,7 @@ This will print the full list of available CLI options and their descriptions.
 1. `data/simple_graph/create_graph.py` (K=3)
 2. `data/simple_graph/generate_alpine_allpairs.py`
 3. (optional) `nanoGPT/make_p13_variant.py`
-4. `nanoGPT/prepare_compositionnew.py`
+4. `nanoGPT/prepare_composition.py`
 5. `nanoGPT/nanoGPT_sft.py`
 6. `nanoGPT/nanoGPT_pg.py` or `nanoGPT/nanoGPT_Qlearning.py`
 7. (optional) `nanoGPT/analyze_event_chain.py`
