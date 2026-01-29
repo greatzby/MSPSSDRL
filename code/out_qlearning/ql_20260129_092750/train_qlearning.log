@@ -1,0 +1,10 @@
+[2026-01-29 09:27:50,485][INFO] Q-learning training started.
+[2026-01-29 09:27:50,485][INFO] Output directory: out_qlearning/ql_20260129_092750
+[2026-01-29 09:27:50,485][INFO] Reward type: process
+[2026-01-29 09:27:50,490][INFO] Resolved model configuration: {"vocab_size": 92, "block_size": 32, "n_layer": 1, "n_head": 1, "n_embd": 92, "dropout": 0.0, "bias": false}
+[2026-01-29 09:27:50,734][INFO] Target network enabled: EMA=0.9950, sync_interval=0
+[2026-01-29 09:27:50,736][INFO] KL enabled: coef=0.0500, warmup=0, anneal=12000
+[2026-01-29 09:27:51,643][INFO] Loaded 1544 unique (source, target) pairs for Q-learning training.
+[2026-01-29 09:27:51,644][WARNING] max_rollout_steps=32 exceeds block_size=32; truncated to 28.
+[2026-01-29 09:28:01,900][INFO] Iter     50 | loss=28.9061 | td_err=4.1469 | kl=2.1673 | temp=0.006 | eps=0.000 | success=0.969 | hit=0.969 | stage2=0.875 | first_src=0.000 | first_valid=0.969 | invalid_edge=0.000 | invalid_tok=0.000 | avg_ep_reward=1.425 | avg_path=4.28 | valid_steps=3.28
+[2026-01-29 09:28:11,731][INFO] Iter    100 | loss=16.3617 | td_err=3.2405 | kl=1.7371 | temp=0.013 | eps=0.000 | success=0.625 | hit=0.625 | stage2=0.844 | first_src=0.000 | first_valid=1.000 | invalid_edge=0.375 | invalid_tok=0.000 | avg_ep_reward=0.738 | avg_path=4.81 | valid_steps=3.44
