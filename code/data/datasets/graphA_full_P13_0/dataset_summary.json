@@ -1,0 +1,58 @@
+{
+  "k_stages": 3,
+  "train_samples": 46712,
+  "test_samples": 315,
+  "train_paths_per_pair": 20,
+  "eval_paths_per_pair": 1,
+  "train_ratio": 0.85,
+  "seed": 42,
+  "include_intra_stage_pairs": false,
+  "allow_unknown_stage_nodes": false,
+  "pair_counts_by_type": {
+    "S1->S2": 842,
+    "S1->S3": 900,
+    "S2->S3": 882
+  },
+  "pair_split_stats_by_type": {
+    "S1->S2": {
+      "total_pairs": 842,
+      "direct_pairs": 251,
+      "non_direct_pairs": 591,
+      "train_pairs": 753,
+      "test_pairs": 89
+    },
+    "S1->S3": {
+      "total_pairs": 900,
+      "direct_pairs": 0,
+      "non_direct_pairs": 900,
+      "train_pairs": 765,
+      "test_pairs": 135
+    },
+    "S2->S3": {
+      "total_pairs": 882,
+      "direct_pairs": 281,
+      "non_direct_pairs": 601,
+      "train_pairs": 791,
+      "test_pairs": 91
+    }
+  },
+  "pair_split_counts": {
+    "train_pairs": 2309,
+    "test_pairs": 315
+  },
+  "sample_counts_by_type": {
+    "train": {
+      "S1->S2": 15311,
+      "__total__": 46712,
+      "S1->S3": 15300,
+      "S2->S3": 16101
+    },
+    "test": {
+      "S1->S2": 89,
+      "__total__": 315,
+      "S1->S3": 135,
+      "S2->S3": 91
+    }
+  },
+  "format_note": "Each line: src dst path_nodes... (ints). Path may include src/dst."
+}

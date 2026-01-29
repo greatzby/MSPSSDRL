@@ -1,0 +1,16 @@
+{
+  "num_nodes": 90,
+  "num_edges": 917,
+  "num_stages": 3,
+  "stage_1_size": 30,
+  "stage_2_size": 30,
+  "stage_3_size": 30,
+  "S1->S2": 842,
+  "S1->S3": 900,
+  "S2->S3": 882,
+  "p_global": 0.3,
+  "p_intra": 0.3,
+  "allow_stage_skip": false,
+  "seed": 42,
+  "experiment_name": "graphA"
+}
